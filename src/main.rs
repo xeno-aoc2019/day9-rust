@@ -24,10 +24,12 @@ const I_JT: Instruction = Instruction { opcode: 5, steps_next: 3 };
 const I_JF: Instruction = Instruction { opcode: 6, steps_next: 3 };
 const I_LT: Instruction = Instruction { opcode: 7, steps_next: 4 };
 const I_EQ: Instruction = Instruction { opcode: 8, steps_next: 4 };
+const I_RBO: Instruction = Instruction { opcode: 9, steps_next: 2};
 const I_HALT: Instruction = Instruction { opcode: 99, steps_next: 0 };
 
 const MODE_REF: i32 = 0;
 const MODE_VAL: i32 = 1;
+const MODE_REL: i32 = 2; ---- CONTINUE HERE --- 
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -144,6 +146,7 @@ impl fmt::Display for VM {
 struct VM {
     program: Vec<BigInt>,
     ip: BigInt,
+    rb: BigInt,
     in_p: i32,
     out_p: i32,
     out_rp: i32,
@@ -158,6 +161,7 @@ impl VM {
         VM {
             program,
             ip: Zero::zero(),
+            rb: Zero::zero(),
             in_p: 0,
             out_p: 0,
             out_rp: 0,
@@ -291,12 +295,18 @@ impl VM {
         }
     }
 
-    fn i_output(&mut self) {
-        let output = self.fetch_arg(self.ip.clone().add(1u32));
+    fn i_output(&mut self, modes: &ParaModes) {
+        let output = self.fetch_arg_value(self.ip.clone().add(1u32), modes.mode(1));
         self.outputs.push(output.clone());
         self.out_p += 1;
         println!("I_OUTPUT: outputting {}", output.clone());
         self.ip = self.ip.clone() + I_OUT.steps_next;
+    }
+
+    fn i_rbo(&mut self, modes: &ParaModes) {
+        let value = self.fetch_arg_value(self.ip.clone().add(1u32), modes.mode(1));
+        self.rb += value;
+        self.ip = self.ip.clone() + I_RBO.steps_next;
     }
 
     fn i_jt(&mut self, modes: &ParaModes) {
@@ -368,7 +378,7 @@ impl VM {
         if opcode == 1 { return self.i_add(&modes); };
         if opcode == 2 { return self.i_mul(&modes); };
         if opcode == 3 { return self.i_input(); };
-        if opcode == 4 { return self.i_output(); };
+        if opcode == 4 { return self.i_output(&modes); };
         if opcode == 5 { return self.i_jt(&modes); };
         if opcode == 6 { return self.i_jf(&modes); };
         if opcode == 7 { return self.i_lt(&modes); };

@@ -29,7 +29,7 @@ const I_HALT: Instruction = Instruction { opcode: 99, steps_next: 0 };
 
 const MODE_REF: i32 = 0;
 const MODE_VAL: i32 = 1;
-const MODE_REL: i32 = 2; ---- CONTINUE HERE --- 
+const MODE_REL: i32 = 2;
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -226,6 +226,10 @@ impl VM {
         }
         if mode == MODE_REF {
             return self.read_mem(arg);
+        }
+        if mode == MODE_REL {
+            let index = arg + self.rb.clone();
+            return self.read_mem(index);
         }
         panic!("Unknown param mode");
     }

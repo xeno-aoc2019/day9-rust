@@ -9,6 +9,7 @@ use std::fmt::Formatter;
 use num_bigint::BigInt;
 use num_traits::{Zero, One, ToPrimitive};
 use std::ops::Add;
+use std::collections::HashMap;
 
 
 struct Instruction {
@@ -24,7 +25,7 @@ const I_JT: Instruction = Instruction { opcode: 5, steps_next: 3 };
 const I_JF: Instruction = Instruction { opcode: 6, steps_next: 3 };
 const I_LT: Instruction = Instruction { opcode: 7, steps_next: 4 };
 const I_EQ: Instruction = Instruction { opcode: 8, steps_next: 4 };
-const I_RBO: Instruction = Instruction { opcode: 9, steps_next: 2};
+const I_RBO: Instruction = Instruction { opcode: 9, steps_next: 2 };
 const I_HALT: Instruction = Instruction { opcode: 99, steps_next: 0 };
 
 const MODE_REF: i32 = 0;
@@ -42,6 +43,7 @@ impl fmt::Display for Instruction {
             6 => write!(f, "I_JF({})", self.opcode),
             7 => write!(f, "I_LT({})", self.opcode),
             8 => write!(f, "I_EQ({})", self.opcode),
+            9 => write!(f, "I_RBO({}", self.opcode),
             _ => write!(f, "UNKNOWN({}", self.opcode)
         }
     }
@@ -154,6 +156,7 @@ struct VM {
     interrupted: bool,
     inputs: Vec<BigInt>,
     outputs: Vec<BigInt>,
+    high_mem: HashMap<BigInt, BigInt>,
 }
 
 impl VM {
@@ -169,6 +172,7 @@ impl VM {
             interrupted: false,
             inputs,
             outputs: vec!(),
+            high_mem: HashMap::new(),
         }
     }
 
@@ -176,6 +180,13 @@ impl VM {
         if addr < Zero::zero() {
             println!("Tried to read a negative memory address: {}", addr);
             panic!("Illegal memory access");
+        }
+        if addr > BigInt::from(self.program.len()) {
+            println!("read_mem: high_mem: {}", addr);
+            return match self.high_mem.get(&addr) {
+                Some(value) => value.clone(),
+                None => Zero::zero()
+            };
         }
         let value = self.program[addr.to_u32().unwrap() as usize].clone();
         println!("Reading [{}] = {}", addr, value);
@@ -187,8 +198,13 @@ impl VM {
             println!("Tried to write to a negative memory address: {}", addr);
             panic!("Illegal memory access");
         }
-        println!("Writing [{}] = {}", addr, value);
-        self.program[addr.to_u32().unwrap() as usize] = value;
+        if (addr > BigInt::from(self.program.len())) {
+            println!("write_mem: high_mem: {}", addr.clone());
+            self.high_mem.insert(addr, value);
+        } else {
+            println!("Writing [{}] = {}", addr, value);
+            self.program[addr.to_u32().unwrap() as usize] = value;
+        }
     }
 
 
@@ -206,6 +222,7 @@ impl VM {
             6 => I_JF,
             7 => I_LT,
             8 => I_EQ,
+            9 => I_RBO,
             99 => I_HALT,
             _ => {
                 println!("Unknown opcode at ip={}: {}", self.ip, opcode);
@@ -220,7 +237,8 @@ impl VM {
     }
 
     fn fetch_arg_value(&self, n: BigInt, mode: i32) -> BigInt {
-        let arg = self.program[(self.ip.clone()+n.clone()).to_usize().unwrap()].clone();
+        let arg = self.program[(self.ip.clone() + n.clone()).to_usize().unwrap()].clone();
+        println!("fetch_arg_value({}, {})", n.clone(), mode);
         if mode == MODE_VAL {
             return arg;
         }
@@ -300,7 +318,7 @@ impl VM {
     }
 
     fn i_output(&mut self, modes: &ParaModes) {
-        let output = self.fetch_arg_value(self.ip.clone().add(1u32), modes.mode(1));
+        let output = self.fetch_arg_value(One::one(), modes.mode(1));
         self.outputs.push(output.clone());
         self.out_p += 1;
         println!("I_OUTPUT: outputting {}", output.clone());
@@ -308,7 +326,8 @@ impl VM {
     }
 
     fn i_rbo(&mut self, modes: &ParaModes) {
-        let value = self.fetch_arg_value(self.ip.clone().add(1u32), modes.mode(1));
+        let value = self.fetch_arg_value(One::one(), modes.mode(1));
+        println!("RBO: rb={} += {}", self.rb, value);
         self.rb += value;
         self.ip = self.ip.clone() + I_RBO.steps_next;
     }
@@ -387,6 +406,7 @@ impl VM {
         if opcode == 6 { return self.i_jf(&modes); };
         if opcode == 7 { return self.i_lt(&modes); };
         if opcode == 8 { return self.i_eq(&modes); };
+        if opcode == 9 { return self.i_rbo(&modes); };
         println!("Unknown instruction: {}, halting", opcode);
         self.i_halt();
     }

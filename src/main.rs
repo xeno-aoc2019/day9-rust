@@ -11,6 +11,13 @@ use num_traits::{Zero, One, ToPrimitive};
 use std::ops::Add;
 use std::collections::HashMap;
 
+fn _0() -> BigInt { Zero::zero() }
+
+fn _1() -> BigInt { One::one() }
+
+fn _2() -> BigInt { BigInt::from(2) }
+
+fn _3() -> BigInt { BigInt::from(3) }
 
 struct Instruction {
     opcode: i32,
@@ -195,12 +202,12 @@ impl VM {
     }
 
     fn write_mem(&mut self, addr: BigInt, value: BigInt) {
-        println!("write_mem({}, {})", addr.clone(), value.clone());
+//        println!("write_mem({}, {})", addr.clone(), value.clone());
         if addr < Zero::zero() {
             println!("Tried to write to a negative memory address: {}", addr);
             panic!("Illegal memory access");
         }
-        if (addr > BigInt::from(self.program.len())) {
+        if addr > BigInt::from(self.program.len()) {
             // println!("write_mem: high_mem: {}", addr.clone());
             self.high_mem.insert(addr, value);
         } else {
@@ -307,7 +314,8 @@ impl VM {
 //        println!("I_MUL [{}] = [{}]+[{}]", dest, adr1, adr2);
         println!("I_MUL [{}] = [{}]={}*[{}]={}", dest, adr1, param1, adr2, param2);
         let value = param1 * param2;
-        self.write_mem(dest, value);
+        // self.write_mem(dest, value);
+        self.store_arg_value(_3(), value, modes.mode(3));
         self.step(I_MUL.steps_next);
     }
 
@@ -321,7 +329,8 @@ impl VM {
         let input = self.read_input();
         match input {
             Some(input) => {
-                self.write_mem(adr.clone(), input.clone());
+                // self.write_mem(adr.clone(), input.clone());
+                self.store_arg_value(One::one(), input.clone(), modes.mode(1));
                 println!("I_INPUT [{}] input:{}", adr.clone(), input.clone());
                 self.ip = self.ip.clone() + I_IN.steps_next;
             }
@@ -376,10 +385,11 @@ impl VM {
     fn i_lt(&mut self, modes: &ParaModes) {
         let param1 = self.fetch_arg_value(One::one(), modes.mode(1));
         let param2 = self.fetch_arg_value(BigInt::from(2), modes.mode(2));
-        let dest = self.fetch_arg(BigInt::from(3));
+        let dest = self.fetch_arg(_3());
         let res = if param1 < param2 { One::one() } else { Zero::zero() };
         println!("I_LT [{}] := {} ( {} < {} )", dest, res, param1, param2);
-        self.write_mem(dest, res);
+        // self.write_mem(dest, res);
+        self.store_arg_value(_3(), res, modes.mode(3));
         self.step(I_LT.steps_next);
     }
 
@@ -389,7 +399,8 @@ impl VM {
         let dest = self.fetch_arg(BigInt::from(3));
         let res = if param1 == param2 { One::one() } else { Zero::zero() };
         println!("I_EQ [{}] := {} ( {}=={} )", dest, res, param1, param2);
-        self.write_mem(dest, res);
+//        self.write_mem(dest, res);
+        self.store_arg_value(_3(), res, modes.mode(3));
         self.step(I_EQ.steps_next);
     }
 
@@ -413,8 +424,8 @@ impl VM {
     fn exec_inst(&mut self) {
         let (instr, modes) = self.fetch_instr();
         let opcode = instr.opcode;
-//        println!("Executing: {} ip={} {}", opcode, self.ip, modes);
-        println!(".");
+        println!("Executing: {} ip={} {}", opcode, self.ip, modes);
+//        println!(".");
         if opcode == 99 { return self.i_halt(); };
         if opcode == 1 { return self.i_add(&modes); };
         if opcode == 2 { return self.i_mul(&modes); };
@@ -459,7 +470,8 @@ fn main() {
 
     let mut vm = VM::new(program.clone(), vec!());
     vm.run();
-    vm.add_input(One::one());
+    // vm.add_input(One::one());
+    vm.add_input(_2());
     println!("{}", vm);
     vm.resume();
     vm.add_input(BigInt::from(4));

@@ -195,6 +195,7 @@ impl VM {
     }
 
     fn write_mem(&mut self, addr: BigInt, value: BigInt) {
+        println!("write_mem({}, {})", addr.clone(), value.clone());
         if addr < Zero::zero() {
             println!("Tried to write to a negative memory address: {}", addr);
             panic!("Illegal memory access");
@@ -210,7 +211,7 @@ impl VM {
 
 
     fn fetch_instr(&self) -> (Instruction, ParaModes) {
-        let instruction = self.program[self.ip.to_u32().unwrap() as usize].clone().to_u32().unwrap();
+        let instruction = self.program[self.ip.to_usize().unwrap()].clone().to_u32().unwrap();
         let para_modes = ParaModes::new(instruction.to_i32().unwrap());
 //        println!("Fetching instruction at [{}] = {}", self.ip, instruction);
         let opcode = instruction % 100;
@@ -253,6 +254,17 @@ impl VM {
         panic!("Unknown param mode");
     }
 
+    fn store_arg_value(&mut self, n: BigInt, value: BigInt, mode: i32) {
+        println!("store_arg_value: n={}, value={}, mode={}", n.clone(), value.clone(), mode.clone());
+        let arg = self.program[(self.ip.clone() + n.clone()).to_usize().unwrap()].clone();
+        let address = match mode {
+            MODE_REF => arg,
+            MODE_REL => arg + self.rb.clone(),
+            _ => BigInt::from(424242)
+        };
+        self.write_mem(address.clone(), value);
+    }
+
     fn step(&mut self, n: usize) {
         self.ip += n;
     }
@@ -280,7 +292,9 @@ impl VM {
         let param2 = self.fetch_arg_value(BigInt::from(2), modes.mode(2));
         let dest = self.fetch_arg(BigInt::from(3));
         println!("I_ADD [{}] = {}+{}", dest, param1, param2);
-        self.write_mem(dest, param1 + param2);
+        // self.write_mem(dest, param1 + param2);
+        println!("modes: {} mode[3] = {}", modes, modes.mode(3));
+        self.store_arg_value(BigInt::from(3), param1 + param2, modes.mode(3));
         self.step(I_ADD.steps_next);
     }
 
@@ -301,7 +315,7 @@ impl VM {
         self.inputs.len() > (self.in_p as usize)
     }
 
-    fn i_input(&mut self) {
+    fn i_input(&mut self, modes: &ParaModes) {
         self.has_input();
         let adr = self.fetch_arg(One::one());
         let input = self.read_input();
@@ -328,7 +342,9 @@ impl VM {
 
     fn i_rbo(&mut self, modes: &ParaModes) {
         let value = self.fetch_arg_value(One::one(), modes.mode(1));
-        println!("RBO: rb={} += {}", self.rb, value);
+        println!("I_RBO({}) {}", value, modes);
+        let new_value = value.clone() + self.rb.clone();
+        println!("I_RBO: rb := {} ( RBO={} + {} )", new_value, self.rb, value);
         self.rb += value;
         self.ip = self.ip.clone() + I_RBO.steps_next;
     }
@@ -397,11 +413,12 @@ impl VM {
     fn exec_inst(&mut self) {
         let (instr, modes) = self.fetch_instr();
         let opcode = instr.opcode;
-        println!("Executing: {} ip={} {}", opcode, self.ip, modes);
+//        println!("Executing: {} ip={} {}", opcode, self.ip, modes);
+        println!(".");
         if opcode == 99 { return self.i_halt(); };
         if opcode == 1 { return self.i_add(&modes); };
         if opcode == 2 { return self.i_mul(&modes); };
-        if opcode == 3 { return self.i_input(); };
+        if opcode == 3 { return self.i_input(&modes); };
         if opcode == 4 { return self.i_output(&modes); };
         if opcode == 5 { return self.i_jt(&modes); };
         if opcode == 6 { return self.i_jf(&modes); };

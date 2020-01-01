@@ -182,11 +182,12 @@ impl VM {
             panic!("Illegal memory access");
         }
         if addr > BigInt::from(self.program.len()) {
-            println!("read_mem: high_mem: {}", addr);
-            return match self.high_mem.get(&addr) {
+            let val = match self.high_mem.get(&addr) {
                 Some(value) => value.clone(),
                 None => Zero::zero()
             };
+            println!("read_mem: high_mem: {} -> {}", addr, val);
+            return val;
         }
         let value = self.program[addr.to_u32().unwrap() as usize].clone();
         println!("Reading [{}] = {}", addr, value);
@@ -199,10 +200,10 @@ impl VM {
             panic!("Illegal memory access");
         }
         if (addr > BigInt::from(self.program.len())) {
-            println!("write_mem: high_mem: {}", addr.clone());
+            // println!("write_mem: high_mem: {}", addr.clone());
             self.high_mem.insert(addr, value);
         } else {
-            println!("Writing [{}] = {}", addr, value);
+            // println!("Writing [{}] = {}", addr, value);
             self.program[addr.to_u32().unwrap() as usize] = value;
         }
     }
@@ -238,7 +239,7 @@ impl VM {
 
     fn fetch_arg_value(&self, n: BigInt, mode: i32) -> BigInt {
         let arg = self.program[(self.ip.clone() + n.clone()).to_usize().unwrap()].clone();
-        println!("fetch_arg_value({}, {})", n.clone(), mode);
+//        println!("fetch_arg_value({}, {})", n.clone(), mode);
         if mode == MODE_VAL {
             return arg;
         }
@@ -289,8 +290,8 @@ impl VM {
         let param1 = self.fetch_arg_value(One::one(), modes.mode(1));
         let param2 = self.fetch_arg_value(BigInt::from(2), modes.mode(2));
         let dest = self.fetch_arg(BigInt::from(3));
-        println!("I_MUL [{}] = [{}]+[{}]", dest, adr1, adr2);
-        println!("I_MUL [{}] = [{}]={}+[{}]={}", dest, adr1, param1, adr2, param2);
+//        println!("I_MUL [{}] = [{}]+[{}]", dest, adr1, adr2);
+        println!("I_MUL [{}] = [{}]={}*[{}]={}", dest, adr1, param1, adr2, param2);
         let value = param1 * param2;
         self.write_mem(dest, value);
         self.step(I_MUL.steps_next);
@@ -361,7 +362,7 @@ impl VM {
         let param2 = self.fetch_arg_value(BigInt::from(2), modes.mode(2));
         let dest = self.fetch_arg(BigInt::from(3));
         let res = if param1 < param2 { One::one() } else { Zero::zero() };
-        println!("I_LT [{}]={} = {}=={}", dest, res, param1, param2);
+        println!("I_LT [{}] := {} ( {} < {} )", dest, res, param1, param2);
         self.write_mem(dest, res);
         self.step(I_LT.steps_next);
     }
@@ -371,7 +372,7 @@ impl VM {
         let param2 = self.fetch_arg_value(BigInt::from(2), modes.mode(2));
         let dest = self.fetch_arg(BigInt::from(3));
         let res = if param1 == param2 { One::one() } else { Zero::zero() };
-        println!("I_EQ [{}]={} = {}=={}", dest, res, param1, param2);
+        println!("I_EQ [{}] := {} ( {}=={} )", dest, res, param1, param2);
         self.write_mem(dest, res);
         self.step(I_EQ.steps_next);
     }
@@ -450,7 +451,7 @@ fn main() {
 }
 
 fn read_program() -> Vec<BigInt> {
-    if let Ok(lines) = getLines("input.txt") {
+    if let Ok(lines) = get_lines("input.txt") {
         for maybe_line in lines {
             if let Ok(line) = maybe_line {
                 let mut result: Vec<BigInt> = vec!();
@@ -465,7 +466,7 @@ fn read_program() -> Vec<BigInt> {
     panic!("no input");
 }
 
-fn getLines<P>(file_name: P) -> Result<Lines<BufReader<File>>>
+fn get_lines<P>(file_name: P) -> Result<Lines<BufReader<File>>>
     where P: AsRef<Path>, {
     let file = File::open(file_name)?;
     Ok(BufReader::new(file).lines())
